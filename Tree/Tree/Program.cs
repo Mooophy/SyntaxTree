@@ -10,7 +10,6 @@ using static System.Linq.Enumerable;
 
 namespace Syntax
 {
-
     #region Helpers
     public static class RtfToString
     {
@@ -91,7 +90,7 @@ namespace Syntax
         Other
     }
 
-    public class Tree
+    public class Tree : IEnumerable<Tree>
     {
         public static Tree Create(string text)
         {
@@ -169,7 +168,10 @@ namespace Syntax
                 {
                     if (stack.Count < 1)
                     {
-                        tree.Warnings = tree.Warnings.Concat(Complain(tree.Text, tree.Head, tree.Tail, 5));
+                        tree.Warnings = tree
+                            .Warnings
+                            .Append("Extra 'End If' command is found as following")
+                            .Concat(Complain(child.Text, child.Head, child.Tail, 35));
                         continue;
                     }
                     stack.Pop();
@@ -177,9 +179,11 @@ namespace Syntax
             }
             if (stack.Count > 0)
             {
-                tree.Warnings = tree.Warnings.Concat(stack.SelectMany(t => Complain(t.Text, t.Head, t.Tail, 5)));
+                tree.Warnings = tree
+                    .Warnings
+                    .Append("Extra 'If' command is found as following")
+                    .Concat(stack.SelectMany(t => Complain(t.Text, t.Head, t.Tail, 35)));
             }
-
         }
 
         public string Text { get; private set; }
@@ -196,7 +200,7 @@ namespace Syntax
         public int Tail { get; private set; }
 
         public IEnumerable<string> Warnings { get; private set; }
-            = Enumerable.Empty<string>();
+            = Empty<string>();
 
         public int GetHeight()
             => AnyChild ? 1 : 1 + Children.Select(c => c.GetHeight()).Max();
@@ -209,6 +213,30 @@ namespace Syntax
 
         public override string ToString()
             => Text.Substring(Head, Tail - Head + 1);
+
+        /// <summary>
+        /// Implement IEnumerable<T> by BFS.
+        /// </summary>
+        /// <returns></returns>
+        public IEnumerator<Tree> GetEnumerator()
+        {
+            var queue = new Queue<Tree>();
+            queue.Enqueue(this);
+            while (queue.Count != 0)
+            {
+                var current = queue.Dequeue();
+                if (current.AnyChild)
+                    current
+                        .Children
+                        .Aggregate(queue, (q, c) => { q.Enqueue(c); return q; });
+                yield return current;
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
     }
 }
 
@@ -229,10 +257,10 @@ public static class Program
         //var test0 = Tree.Create("{}");
         //Console.WriteLine($"Based on test Height={test0.GetHeight()}");
 
-        var t = Tree.Create("{IF foo} {{End IF}}");
-        Tree.CheckIfAndEndIf(t);
-        t
-            .Warnings
+        var tree = Tree.Create("{{IF foo}} {{{End IF}}}");
+        Tree.CheckIfAndEndIf(tree);
+        tree
+            .SelectMany(t => t.Warnings)
             .ToList()
             .ForEach(Console.WriteLine);
     }
