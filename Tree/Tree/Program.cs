@@ -8,20 +8,27 @@ using System.Windows.Forms;
 using Syntax;
 using static System.Linq.Enumerable;
 
-namespace Syntax {
+namespace Syntax
+{
 
     #region Helpers
-    public static class RtfToString {
+    public static class RtfToString
+    {
         /// <summary>
         /// Convert
         /// </summary>
         /// <param name="richText"></param>
         /// <returns></returns>
-        public static string Convert(string richText) {
-            using (var box = new RichTextBox()) {
-                try {
+        public static string Convert(string richText)
+        {
+            using (var box = new RichTextBox())
+            {
+                try
+                {
                     box.Rtf = richText;
-                } catch (Exception e) {
+                }
+                catch (Exception e)
+                {
                     if (e is ArgumentException) return richText;
                     throw;
                 }
@@ -30,7 +37,8 @@ namespace Syntax {
         }
     }
 
-    public static class EnumerableExtensions {
+    public static class EnumerableExtensions
+    {
         /// <summary>
         /// Return a new IEnumerable&lt;T&gt; with elements appended.   
         /// </summary>
@@ -75,26 +83,33 @@ namespace Syntax {
     }
     #endregion
 
-    public enum SyntaxType {
+    public enum SyntaxType
+    {
         If,
         EndIf,
         Root,
         Other
     }
 
-    public class Tree {
-        public static Tree Create(string text) {
+    public class Tree
+    {
+        public static Tree Create(string text)
+        {
             var stack = new Stack<Tree>();
             var root = new Tree { Parent = null, Head = -1, Tail = text.Length, Text = text };
             stack.Push(root);
-            for (var i = 0; i != text.Length; ++i) {
-                if (text[i] == '{') {
+            for (var i = 0; i != text.Length; ++i)
+            {
+                if (text[i] == '{')
+                {
                     var tree = new Tree { Parent = stack.Peek(), Head = i, Text = text };
                     stack.Peek().Children.Add(tree);
                     stack.Push(tree);
                 }
-                if (text[i] == '}') {
-                    if (stack.Count < 2) {
+                if (text[i] == '}')
+                {
+                    if (stack.Count < 2)
+                    {
                         root.Warnings = root.Warnings.Concat(Complain(text, i, i, 15).Prepend("Extra '}' found as following:"));
                         continue;
                     }
@@ -102,7 +117,8 @@ namespace Syntax {
                     stack.Pop();
                 }
             }
-            if (stack.Count > 1) {
+            if (stack.Count > 1)
+            {
                 stack
                     .Where(b => b.Parent != null)
                     .ToList()
@@ -111,7 +127,8 @@ namespace Syntax {
             return root;
         }
 
-        private static IEnumerable<string> Complain(string text, int head, int tail, int offset) {
+        private static IEnumerable<string> Complain(string text, int head, int tail, int offset)
+        {
             var positions = Range(head, tail - head + 1).ToList();
             var extendeds = Range(1, offset)
                 .Aggregate(
@@ -126,35 +143,40 @@ namespace Syntax {
                 .Replace('\n', '-')
                 .Replace('\t', ' ');
             var arrows = combined
-                .Select(c => positions.Contains(c) ? '^' : '~')
+                .Select(c => positions.Contains(c) ? '^' : ' ')
                 .Join();
             return new[] { conext, arrows };
         }
 
         private static IDictionary<SyntaxType, Func<Tree, bool>> RegexDictionary { get; }
             = new Dictionary<SyntaxType, Func<Tree, bool>> {
-                {SyntaxType.If, t => Regex.IsMatch(t.ToString(), @"{\s*?if\s+.*?}", RegexOptions.IgnoreCase)},
-                {SyntaxType.EndIf, t => Regex.IsMatch(t.ToString(), @"{\s*?end\s+if\s*?}", RegexOptions.IgnoreCase)},
-                {SyntaxType.Root, t => t.Parent == null}
+                { SyntaxType.If, t => Regex.IsMatch(t.ToString(), @"^{\s*?if\s+.*?}", RegexOptions.IgnoreCase) },
+                { SyntaxType.EndIf, t => Regex.IsMatch(t.ToString(), @"^{\s*?end\s+if\s*?}", RegexOptions.IgnoreCase) },
+                { SyntaxType.Root, t => t.Parent == null }
             };
 
-        public static void CheckIfAndEndIf(Tree tree) {
+        public static void CheckIfAndEndIf(Tree tree)
+        {
             if (!tree.AnyChild)
                 return;
             var stack = new Stack<Tree>();
-            foreach (var child in tree.Children) {
+            foreach (var child in tree.Children)
+            {
                 CheckIfAndEndIf(child);
                 if (child.GetSyntaxType() == SyntaxType.If)
                     stack.Push(child);
-                else if (child.GetSyntaxType() == SyntaxType.EndIf) {
-                    if (stack.Count < 1) {
+                else if (child.GetSyntaxType() == SyntaxType.EndIf)
+                {
+                    if (stack.Count < 1)
+                    {
                         tree.Warnings = tree.Warnings.Concat(Complain(tree.Text, tree.Head, tree.Tail, 5));
                         continue;
                     }
                     stack.Pop();
                 }
             }
-            if (stack.Count > 0) {
+            if (stack.Count > 0)
+            {
                 tree.Warnings = tree.Warnings.Concat(stack.SelectMany(t => Complain(t.Text, t.Head, t.Tail, 5)));
             }
 
@@ -190,9 +212,11 @@ namespace Syntax {
     }
 }
 
-public static class Program {
+public static class Program
+{
 
-    private static void Main(string[] args) {
+    private static void Main(string[] args)
+    {
         //var trees = Directory
         //     .GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
         //     .Where(f => f.EndsWith("rtf"))
