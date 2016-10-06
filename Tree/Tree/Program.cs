@@ -75,7 +75,7 @@ namespace Syntax {
     }
     #endregion
 
-    public enum Type {
+    public enum SyntaxType {
         If,
         EndIf,
         Root,
@@ -83,11 +83,6 @@ namespace Syntax {
     }
 
     public class Tree {
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="text"></param>
-        /// <returns></returns>
         public static Tree Create(string text) {
             var stack = new Stack<Tree>();
             var root = new Tree { Parent = null, Head = -1, Tail = text.Length, Text = text };
@@ -136,50 +131,61 @@ namespace Syntax {
             return new[] { conext, arrows };
         }
 
-        //private static IDictionary<Type, Func<Tree, bool>> RegexDictionary { get; }
-        //    = new Dictionary<Type, Func<Tree, bool>> {
-        //        { Type.If, t => Regex.IsMatch(t.ToString(), @"{\s*?if\s+.*?}")}
-        //        { Type. }
-        //    };
+        private static IDictionary<SyntaxType, Func<Tree, bool>> RegexDictionary { get; }
+            = new Dictionary<SyntaxType, Func<Tree, bool>> {
+                {SyntaxType.If, t => Regex.IsMatch(t.ToString(), @"{\s*?if\s+.*?}", RegexOptions.IgnoreCase)},
+                {SyntaxType.EndIf, t => Regex.IsMatch(t.ToString(), @"{\s*?end\s+if\s*?}", RegexOptions.IgnoreCase)},
+                {SyntaxType.Root, t => t.Parent == null}
+            };
+
+        public static void CheckIfAndEndIf(Tree tree) {
+            if (!tree.AnyChild)
+                return;
+            var stack = new Stack<Tree>();
+            foreach (var child in tree.Children) {
+                CheckIfAndEndIf(child);
+                if (child.GetSyntaxType() == SyntaxType.If)
+                    stack.Push(child);
+                else if (child.GetSyntaxType() == SyntaxType.EndIf) {
+                    if (stack.Count < 1) {
+                        tree.Warnings = tree.Warnings.Concat(Complain(tree.Text, tree.Head, tree.Tail, 5));
+                        continue;
+                    }
+                    stack.Pop();
+                }
+            }
+            if (stack.Count > 0) {
+                tree.Warnings = tree.Warnings.Concat(stack.SelectMany(t => Complain(t.Text, t.Head, t.Tail, 5)));
+            }
+
+        }
 
         public string Text { get; private set; }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public IEnumerable<string> Warnings { get; private set; }
-            = Enumerable.Empty<string>();
-
-        /// <summary>
-        /// 
-        /// </summary>
         public IList<Tree> Children { get; }
             = new List<Tree>();
 
-        /// <summary>
-        /// 
-        /// </summary>
         public Tree Parent { get; set; }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public bool AnyChild => Children.Count == 0;
+        public bool AnyChild => Children.Count > 0;
 
-        /// <summary>
-        /// 
-        /// </summary>
         public int Head { get; private set; }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public int Tail { get; private set; }
+
+        public IEnumerable<string> Warnings { get; private set; }
+            = Enumerable.Empty<string>();
 
         public int GetHeight()
             => AnyChild ? 1 : 1 + Children.Select(c => c.GetHeight()).Max();
 
-        public override string ToString() 
+        public SyntaxType GetSyntaxType()
+            => RegexDictionary
+                .Any(p => p.Value(this))
+                ? RegexDictionary.FirstOrDefault(p => p.Value(this)).Key
+                : SyntaxType.Other;
+
+        public override string ToString()
             => Text.Substring(Head, Tail - Head + 1);
     }
 }
@@ -187,16 +193,23 @@ namespace Syntax {
 public static class Program {
 
     private static void Main(string[] args) {
-        var trees = Directory
-             .GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
-             .Where(f => f.EndsWith("rtf"))
-             .Select(File.ReadAllText)
-             .Select(RtfToString.Convert)
-             .Select(Tree.Create)
-             .ToList();
-        Console.WriteLine($"Based on files from Lynne Count={trees.Count}, Max Height={trees.Select(t => t.GetHeight()).Max()}");
+        //var trees = Directory
+        //     .GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
+        //     .Where(f => f.EndsWith("rtf"))
+        //     .Select(File.ReadAllText)
+        //     .Select(RtfToString.Convert)
+        //     .Select(Tree.Create)
+        //     .ToList();
+        //Console.WriteLine($"Based on files from Lynne Count={trees.Count}, Max Height={trees.Select(t => t.GetHeight()).Max()}");
 
-        var test0 = Tree.Create("{{}}{{{}}}{}");
-        Console.WriteLine($"Based on test                                      Height={test0.GetHeight()}");
+        //var test0 = Tree.Create("{}");
+        //Console.WriteLine($"Based on test Height={test0.GetHeight()}");
+
+        var t = Tree.Create("{IF foo} {{End IF}}");
+        Tree.CheckIfAndEndIf(t);
+        t
+            .Warnings
+            .ToList()
+            .ForEach(Console.WriteLine);
     }
 }
