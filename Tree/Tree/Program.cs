@@ -257,7 +257,7 @@ public static class Program
         //var test0 = Tree.Create("{}");
         //Console.WriteLine($"Based on test Height={test0.GetHeight()}");
 
-        var tree = Tree.Create("{{IF foo}} {{{End IF}}}");
+        var tree = Tree.Create("{{IF foo}} {{{End IF}}} { if }");
         Tree.CheckIfAndEndIf(tree);
         tree
             .SelectMany(t => t.Warnings)
