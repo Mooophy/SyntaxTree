@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Syntax;
 using static System.Linq.Enumerable;
@@ -73,6 +75,13 @@ namespace Syntax {
     }
     #endregion
 
+    public enum Type {
+        If,
+        EndIf,
+        Root,
+        Other
+    }
+
     public class Tree {
         /// <summary>
         /// 
@@ -81,11 +90,11 @@ namespace Syntax {
         /// <returns></returns>
         public static Tree Create(string text) {
             var stack = new Stack<Tree>();
-            var root = new Tree { Parent = null, Head = -1, Tail = text.Length };
+            var root = new Tree { Parent = null, Head = -1, Tail = text.Length, Text = text };
             stack.Push(root);
             for (var i = 0; i != text.Length; ++i) {
                 if (text[i] == '{') {
-                    var tree = new Tree { Parent = stack.Peek(), Head = i };
+                    var tree = new Tree { Parent = stack.Peek(), Head = i, Text = text };
                     stack.Peek().Children.Add(tree);
                     stack.Push(tree);
                 }
@@ -127,6 +136,14 @@ namespace Syntax {
             return new[] { conext, arrows };
         }
 
+        //private static IDictionary<Type, Func<Tree, bool>> RegexDictionary { get; }
+        //    = new Dictionary<Type, Func<Tree, bool>> {
+        //        { Type.If, t => Regex.IsMatch(t.ToString(), @"{\s*?if\s+.*?}")}
+        //        { Type. }
+        //    };
+
+        public string Text { get; private set; }
+
         /// <summary>
         /// 
         /// </summary>
@@ -159,8 +176,11 @@ namespace Syntax {
         /// </summary>
         public int Tail { get; private set; }
 
-        public int Height()
-            => AnyChild ? 1 : 1 + Children.Select(c => c.Height()).Max();
+        public int GetHeight()
+            => AnyChild ? 1 : 1 + Children.Select(c => c.GetHeight()).Max();
+
+        public override string ToString() 
+            => Text.Substring(Head, Tail - Head + 1);
     }
 }
 
@@ -174,9 +194,9 @@ public static class Program {
              .Select(RtfToString.Convert)
              .Select(Tree.Create)
              .ToList();
-        Console.WriteLine($"Based on files from Lynne Count={trees.Count}, Max Height={trees.Select(t => t.Height()).Max()}");
+        Console.WriteLine($"Based on files from Lynne Count={trees.Count}, Max Height={trees.Select(t => t.GetHeight()).Max()}");
 
         var test0 = Tree.Create("{{}}{{{}}}{}");
-        Console.WriteLine($"Based on test                                      Height={test0.Height()}");
+        Console.WriteLine($"Based on test                                      Height={test0.GetHeight()}");
     }
 }
