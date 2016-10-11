@@ -204,9 +204,6 @@ namespace Syntax {
         public IEnumerable<string> Warnings { get; private set; }
             = Empty<string>();
 
-        public int GetHeight()
-            => AnyChild ? 1 : 1 + Children.Select(c => c.GetHeight()).Max();
-
         public override string ToString()
             => Text.Substring(Head, Tail - Head + 1);
 
@@ -240,14 +237,14 @@ public static class Program {
         Tree.Offset = 35;
 
         var trees = Directory
-             .GetFiles(/*@"C:\CMS.net\DDTMPLT"*/ @"C:\Personal\Projects\documents\DocuDraftFromLynne")
+             .GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
              .Where(f => f.EndsWith("rtf"))
-             .Select(f => new { FileName = f, Text = File.ReadAllText(f) } /*File.ReadAllText*/)
-             .Select(f => new { f.FileName, Text = RtfToString.Convert(f.Text) } /*RtfToString.Convert*/)
-             .Select(f => new { f.FileName, Tree = Tree.Create(f.Text) } /*Tree.Create*/)
+             .Select(f => new { FileName = f, Text = File.ReadAllText(f) })
+             .Select(f => new { f.FileName, Text = RtfToString.Convert(f.Text) })
+             .Select(f => new { f.FileName, Tree = Tree.Create(f.Text) })
              .ToList();
         trees
-            .ForEach(f => Tree.Check(f.Tree)/*Tree.Check*/);
+            .ForEach(f => Tree.Check(f.Tree));
         trees
             .ForEach(f => {
                 Console.WriteLine($"----file={f.FileName}\t");
@@ -257,9 +254,9 @@ public static class Program {
                     .ToList()
                     .ForEach(Console.WriteLine);
             });
-            //.SelectMany(f /*tree => tree.SelectMany(t => t.Warnings.Append())*/)
-            //.ToList()
-            //.ForEach(Console.WriteLine);
+        //.SelectMany(f /*tree => tree.SelectMany(t => t.Warnings.Append())*/)
+        //.ToList()
+        //.ForEach(Console.WriteLine);
 
         //var file = File.ReadAllText(@"C:\Personal\Projects\documents\DocuDraftFromLynne\testForSyntax.rtf");
 
