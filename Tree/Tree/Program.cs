@@ -77,6 +77,7 @@ namespace Syntax {
     public class Tree : IEnumerable<Tree> {
         public static int Offset { private get; set; } = 35;
 
+        #region regex
         private static Regex RegexIf { get; }
             = new Regex(@"^{\s*if\s+.*?}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -96,6 +97,7 @@ namespace Syntax {
         public bool IsAsk => RegexAsk.IsMatch(ToString());
 
         public bool IsInput => RegexInput.IsMatch(ToString());
+        #endregion
 
         public static Tree Create(string text) {
             var stack = new Stack<Tree>();
@@ -109,7 +111,7 @@ namespace Syntax {
                 }
                 if (text[i] == '}') {
                     if (stack.Count < 2) {
-                        root.Warnings = root.Warnings.Concat(Complain(text, i, i, 15).Prepend("Extra '}' found as following:"));
+                        root.Warnings = root.Warnings.Concat(Complain(text, i, i, Offset).Prepend("Extra '}' found as following:"));
                         continue;
                     }
                     stack.Peek().Tail = i;
@@ -120,7 +122,7 @@ namespace Syntax {
                 stack
                     .Where(b => b.Parent != null)
                     .ToList()
-                    .ForEach(b => root.Warnings = root.Warnings.Concat(Complain(text, b.Head, b.Head, 15).Prepend("Extra '{' found as following:")));
+                    .ForEach(b => root.Warnings = root.Warnings.Concat(Complain(text, b.Head, b.Head, Offset).Prepend("Extra '{' found as following:")));
             }
             return root;
         }
@@ -234,19 +236,30 @@ namespace Syntax {
 public static class Program {
 
     private static void Main(string[] args) {
+
+        Tree.Offset = 35;
+
         var trees = Directory
-             .GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
+             .GetFiles(/*@"C:\CMS.net\DDTMPLT"*/ @"C:\Personal\Projects\documents\DocuDraftFromLynne")
              .Where(f => f.EndsWith("rtf"))
-             .Select(File.ReadAllText)
-             .Select(RtfToString.Convert)
-             .Select(Tree.Create)
+             .Select(f => new { FileName = f, Text = File.ReadAllText(f) } /*File.ReadAllText*/)
+             .Select(f => new { f.FileName, Text = RtfToString.Convert(f.Text) } /*RtfToString.Convert*/)
+             .Select(f => new { f.FileName, Tree = Tree.Create(f.Text) } /*Tree.Create*/)
              .ToList();
         trees
-            .ForEach(Tree.Check);
+            .ForEach(f => Tree.Check(f.Tree)/*Tree.Check*/);
         trees
-            .SelectMany(tree => tree.SelectMany(t => t.Warnings))
-            .ToList()
-            .ForEach(Console.WriteLine);
+            .ForEach(f => {
+                Console.WriteLine($"----file={f.FileName}\t");
+                f
+                    .Tree
+                    .SelectMany(t => t.Warnings)
+                    .ToList()
+                    .ForEach(Console.WriteLine);
+            });
+            //.SelectMany(f /*tree => tree.SelectMany(t => t.Warnings.Append())*/)
+            //.ToList()
+            //.ForEach(Console.WriteLine);
 
         //var file = File.ReadAllText(@"C:\Personal\Projects\documents\DocuDraftFromLynne\testForSyntax.rtf");
 
