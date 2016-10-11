@@ -8,26 +8,19 @@ using System.Windows.Forms;
 using Syntax;
 using static System.Linq.Enumerable;
 
-namespace Syntax
-{
+namespace Syntax {
     #region Helpers
-    public static class RtfToString
-    {
+    public static class RtfToString {
         /// <summary>
         /// Convert
         /// </summary>
         /// <param name="richText"></param>
         /// <returns></returns>
-        public static string Convert(string richText)
-        {
-            using (var box = new RichTextBox())
-            {
-                try
-                {
+        public static string Convert(string richText) {
+            using (var box = new RichTextBox()) {
+                try {
                     box.Rtf = richText;
-                }
-                catch (Exception e)
-                {
+                } catch (Exception e) {
                     if (e is ArgumentException) return richText;
                     throw;
                 }
@@ -36,8 +29,7 @@ namespace Syntax
         }
     }
 
-    public static class EnumerableExtensions
-    {
+    public static class EnumerableExtensions {
         /// <summary>
         /// Return a new IEnumerable&lt;T&gt; with elements appended.   
         /// </summary>
@@ -82,33 +74,41 @@ namespace Syntax
     }
     #endregion
 
-    public enum SyntaxType
-    {
-        If,
-        EndIf,
-        Root,
-        Other
-    }
+    public class Tree : IEnumerable<Tree> {
+        public static int Offset { private get; set; } = 35;
 
-    public class Tree : IEnumerable<Tree>
-    {
-        public static Tree Create(string text)
-        {
+        private static Regex RegexIf { get; }
+            = new Regex(@"^{\s*if\s+.*?}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static Regex RegexEndif { get; }
+            = new Regex(@"^{\s*end\s+if\s*?}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static Regex RegexAsk { get; }
+            = new Regex(@"^{.*?ask\s*\(.*?\).*?}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static Regex RegexInput { get; }
+            = new Regex(@"^{\s*input\s+.*?}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        public bool IsIf => RegexIf.IsMatch(ToString());
+
+        public bool IsEndIf => RegexEndif.IsMatch(ToString());
+
+        public bool IsAsk => RegexAsk.IsMatch(ToString());
+
+        public bool IsInput => RegexInput.IsMatch(ToString());
+
+        public static Tree Create(string text) {
             var stack = new Stack<Tree>();
             var root = new Tree { Parent = null, Head = -1, Tail = text.Length, Text = text };
             stack.Push(root);
-            for (var i = 0; i != text.Length; ++i)
-            {
-                if (text[i] == '{')
-                {
+            for (var i = 0; i != text.Length; ++i) {
+                if (text[i] == '{') {
                     var tree = new Tree { Parent = stack.Peek(), Head = i, Text = text };
                     stack.Peek().Children.Add(tree);
                     stack.Push(tree);
                 }
-                if (text[i] == '}')
-                {
-                    if (stack.Count < 2)
-                    {
+                if (text[i] == '}') {
+                    if (stack.Count < 2) {
                         root.Warnings = root.Warnings.Concat(Complain(text, i, i, 15).Prepend("Extra '}' found as following:"));
                         continue;
                     }
@@ -116,8 +116,7 @@ namespace Syntax
                     stack.Pop();
                 }
             }
-            if (stack.Count > 1)
-            {
+            if (stack.Count > 1) {
                 stack
                     .Where(b => b.Parent != null)
                     .ToList()
@@ -126,8 +125,7 @@ namespace Syntax
             return root;
         }
 
-        private static IEnumerable<string> Complain(string text, int head, int tail, int offset)
-        {
+        private static IEnumerable<string> Complain(string text, int head, int tail, int offset) {
             var positions = Range(head, tail - head + 1).ToList();
             var extendeds = Range(1, offset)
                 .Aggregate(
@@ -147,42 +145,44 @@ namespace Syntax
             return new[] { conext, arrows };
         }
 
-        private static IDictionary<SyntaxType, Func<Tree, bool>> RegexDictionary { get; }
-            = new Dictionary<SyntaxType, Func<Tree, bool>> {
-                { SyntaxType.If, t => Regex.IsMatch(t.ToString(), @"^{\s*?if\s+.*?}", RegexOptions.IgnoreCase) },
-                { SyntaxType.EndIf, t => Regex.IsMatch(t.ToString(), @"^{\s*?end\s+if\s*?}", RegexOptions.IgnoreCase) },
-                { SyntaxType.Root, t => t.Parent == null }
-            };
+        public IEnumerable<string> AsComplain() => Complain(Text, Head, Tail, Offset);
 
-        public static void CheckIfAndEndIf(Tree tree)
-        {
+        public static void Check(Tree tree) {
             if (!tree.AnyChild)
                 return;
             var stack = new Stack<Tree>();
-            foreach (var child in tree.Children)
-            {
-                CheckIfAndEndIf(child);
-                if (child.GetSyntaxType() == SyntaxType.If)
+            foreach (var child in tree.Children) {
+                Check(child);
+                if (child.IsAsk) {
+                    tree.Warnings = tree
+                       .Warnings
+                       .Append("'ASK' function is found as following")
+                       .Concat(child.AsComplain());
+                }
+                if (child.IsInput) {
+                    tree.Warnings = tree
+                       .Warnings
+                       .Append("'INPUT' command is found as following")
+                       .Concat(child.AsComplain());
+                }
+                if (child.IsIf) {
                     stack.Push(child);
-                else if (child.GetSyntaxType() == SyntaxType.EndIf)
-                {
-                    if (stack.Count < 1)
-                    {
+                } else if (child.IsEndIf) {
+                    if (stack.Count < 1) {
                         tree.Warnings = tree
                             .Warnings
                             .Append("Extra 'End If' command is found as following")
-                            .Concat(Complain(child.Text, child.Head, child.Tail, 35));
+                            .Concat(child.AsComplain());
                         continue;
                     }
                     stack.Pop();
                 }
             }
-            if (stack.Count > 0)
-            {
+            if (stack.Count > 0) {
                 tree.Warnings = tree
                     .Warnings
                     .Append("Extra 'If' command is found as following")
-                    .Concat(stack.SelectMany(t => Complain(t.Text, t.Head, t.Tail, 35)));
+                    .Concat(stack.SelectMany(t => t.AsComplain()));
             }
         }
 
@@ -205,12 +205,6 @@ namespace Syntax
         public int GetHeight()
             => AnyChild ? 1 : 1 + Children.Select(c => c.GetHeight()).Max();
 
-        public SyntaxType GetSyntaxType()
-            => RegexDictionary
-                .Any(p => p.Value(this))
-                ? RegexDictionary.FirstOrDefault(p => p.Value(this)).Key
-                : SyntaxType.Other;
-
         public override string ToString()
             => Text.Substring(Head, Tail - Head + 1);
 
@@ -218,12 +212,10 @@ namespace Syntax
         /// Implement IEnumerable<T> by BFS.
         /// </summary>
         /// <returns></returns>
-        public IEnumerator<Tree> GetEnumerator()
-        {
+        public IEnumerator<Tree> GetEnumerator() {
             var queue = new Queue<Tree>();
             queue.Enqueue(this);
-            while (queue.Count != 0)
-            {
+            while (queue.Count != 0) {
                 var current = queue.Dequeue();
                 if (current.AnyChild)
                     current
@@ -233,35 +225,37 @@ namespace Syntax
             }
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
+        IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
         }
     }
 }
 
-public static class Program
-{
+public static class Program {
 
-    private static void Main(string[] args)
-    {
-        //var trees = Directory
-        //     .GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
-        //     .Where(f => f.EndsWith("rtf"))
-        //     .Select(File.ReadAllText)
-        //     .Select(RtfToString.Convert)
-        //     .Select(Tree.Create)
-        //     .ToList();
-        //Console.WriteLine($"Based on files from Lynne Count={trees.Count}, Max Height={trees.Select(t => t.GetHeight()).Max()}");
-
-        //var test0 = Tree.Create("{}");
-        //Console.WriteLine($"Based on test Height={test0.GetHeight()}");
-
-        var tree = Tree.Create("{{IF foo}} {{{End IF}}} { if }");
-        Tree.CheckIfAndEndIf(tree);
-        tree
-            .SelectMany(t => t.Warnings)
+    private static void Main(string[] args) {
+        var trees = Directory
+             .GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
+             .Where(f => f.EndsWith("rtf"))
+             .Select(File.ReadAllText)
+             .Select(RtfToString.Convert)
+             .Select(Tree.Create)
+             .ToList();
+        trees
+            .ForEach(Tree.Check);
+        trees
+            .SelectMany(tree => tree.SelectMany(t => t.Warnings))
             .ToList()
             .ForEach(Console.WriteLine);
+
+        //var file = File.ReadAllText(@"C:\Personal\Projects\documents\DocuDraftFromLynne\testForSyntax.rtf");
+
+        //var tree = Tree.Create(/*"{{IF foo}} {{{End IF}}} { if } {ask(dd)} {{input }}"*/ RtfToString.Convert(file));
+        //Tree.Offset = 15;
+        //Tree.Check(tree);
+        //tree
+        //    .SelectMany(t => t.Warnings)
+        //    .ToList()
+        //    .ForEach(Console.WriteLine);
     }
 }
