@@ -112,7 +112,8 @@ namespace Syntax {
                 if (text[i] == '}') {
                     if (stack.Count < 2) {
                         root.Warnings = root.Warnings.Concat(Complain(text, i, i, Offset).Prepend("Extra '}' found as following:"));
-                        continue;
+                        root.IsLegal = false;
+                        break;
                     }
                     stack.Peek().Tail = i;
                     stack.Pop();
@@ -122,8 +123,15 @@ namespace Syntax {
                 stack
                     .Where(b => b.Parent != null)
                     .ToList()
-                    .ForEach(b => root.Warnings = root.Warnings.Concat(Complain(text, b.Head, b.Head, Offset).Prepend("Extra '{' found as following:")));
+                    .ForEach(
+                        b => {
+                            root.IsLegal = false;
+                            root.Warnings = root.Warnings.Concat(Complain(text, b.Head, b.Head, Offset).Prepend("Extra '{' found as following:"));
+                        });
             }
+            if (root.IsAllLegal) {
+                SyntaxCheck(root);
+            } 
             return root;
         }
 
@@ -149,12 +157,12 @@ namespace Syntax {
 
         public IEnumerable<string> AsComplain() => Complain(Text, Head, Tail, Offset);
 
-        public static void Check(Tree tree) {
+        public static void SyntaxCheck(Tree tree) {
             if (!tree.AnyChild)
                 return;
             var stack = new Stack<Tree>();
             foreach (var child in tree.Children) {
-                Check(child);
+                SyntaxCheck(child);
                 if (child.IsAsk) {
                     tree.Warnings = tree
                        .Warnings
@@ -198,8 +206,16 @@ namespace Syntax {
         public bool AnyChild => Children.Count > 0;
 
         public int Head { get; private set; }
+            = -1;
 
         public int Tail { get; private set; }
+            = -1;
+
+        public bool IsLegal { get; private set; }
+            = true;
+
+        public bool IsAllLegal
+            => this.All(t => t.IsLegal);
 
         public IEnumerable<string> Warnings { get; private set; }
             = Empty<string>();
@@ -238,13 +254,17 @@ public static class Program {
 
         var trees = Directory
              .GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
-             .Where(f => f.EndsWith("rtf"))
+             //.GetFiles(@"C:\CMS.net\DDTMPLT")
+             .Where(f => Regex.IsMatch(f, @"(txt|tmp|rtf)$", RegexOptions.IgnoreCase))
              .Select(f => new { FileName = f, Text = File.ReadAllText(f) })
              .Select(f => new { f.FileName, Text = RtfToString.Convert(f.Text) })
              .Select(f => new { f.FileName, Tree = Tree.Create(f.Text) })
              .ToList();
-        trees
-            .ForEach(f => Tree.Check(f.Tree));
+        //trees
+        //    .ForEach(f => {
+        //        if (f.Tree.IsAllLegal)
+        //            Tree.SyntaxCheck(f.Tree);
+        //    });
         trees
             .ForEach(f => {
                 Console.WriteLine($"----file={f.FileName}\t");
