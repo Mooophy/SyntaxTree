@@ -76,7 +76,7 @@ namespace Syntax {
 
     public class Tree : IEnumerable<Tree>, IEnumerable {
         public static int Offset { private get; set; } 
-            = 35;
+            = 40;
 
         #region regex
         private static Regex RegexIf { get; }
@@ -152,8 +152,9 @@ namespace Syntax {
             combined.Sort();
             var conext = text
                 .Substring(combined.Min(), combined.Count)
-                .Replace('\n', '-')
-                .Replace('\t', ' ');
+                .Replace('\n', ' ')
+                .Replace('\t', ' ')
+                .Replace('\r', ' ');
             var arrows = combined
                 .Select(c => positions.Contains(c) ? '^' : ' ')
                 .Join();
@@ -251,12 +252,12 @@ public static class Program {
 
     private static void Main(string[] args) {
 
-        Tree.Offset = 35;
+        //Tree.Offset = 75;
 
         var trees = Directory
              .GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
              //.GetFiles(@"C:\CMS.net\DDTMPLT")
-             .Where(f => Regex.IsMatch(f, @"(txt|tmp|rtf)$", RegexOptions.IgnoreCase))
+             .Where(f => Regex.IsMatch(f, @"led.*?\.(txt)$", RegexOptions.IgnoreCase))
              .Select(f => new { FileName = f, Text = File.ReadAllText(f) })
              .Select(f => new { f.FileName, Text = RtfToString.Convert(f.Text) })
              .Select(f => new { f.FileName, Tree = Tree.Create(f.Text) })
