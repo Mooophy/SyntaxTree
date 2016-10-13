@@ -209,10 +209,8 @@ namespace Syntax {
         public bool AnyChild => Children.Count > 0;
 
         public int Head { get; private set; } 
-            = -1;
 
         public int Tail { get; private set; } 
-            = -1;
 
         public bool IsLegal { get; private set; } 
             = true;
