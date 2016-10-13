@@ -161,7 +161,8 @@ namespace Syntax {
             return new[] { conext, arrows };
         }
 
-        public IEnumerable<string> AsComplain() => Complain(Text, Head, Tail, Offset);
+        public IEnumerable<string> AsComplain() 
+            => Complain(Text, Head, Tail, Offset);
 
         public static void SyntaxCheck(Tree tree) {
             if (!tree.AnyChild)
@@ -200,23 +201,30 @@ namespace Syntax {
 
         public string Text { get; private set; }
 
-        public IList<Tree> Children { get; } = new List<Tree>();
+        public IList<Tree> Children { get; } 
+            = new List<Tree>();
 
         public Tree Parent { get; set; }
 
         public bool AnyChild => Children.Count > 0;
 
-        public int Head { get; private set; } = -1;
+        public int Head { get; private set; } 
+            = -1;
 
-        public int Tail { get; private set; } = -1;
+        public int Tail { get; private set; } 
+            = -1;
 
-        public bool IsLegal { get; private set; } = true;
+        public bool IsLegal { get; private set; } 
+            = true;
 
-        public bool IsAllLegal => this.All(t => t.IsLegal);
+        public bool IsAllLegal 
+            => this.All(t => t.IsLegal);
 
-        public List<string> Warnings { get; } = new List<string>();
+        public List<string> Warnings { get; } 
+            = new List<string>();
 
-        public override string ToString() => Text.Substring(Head, Tail - Head + 1);
+        public override string ToString() 
+            => Text.Substring(Head, Tail - Head + 1);
 
         /// <summary>
         /// Implement IEnumerable<T> by BFS.
