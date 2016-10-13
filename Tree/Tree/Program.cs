@@ -75,7 +75,7 @@ namespace Syntax {
     #endregion
 
     public class Tree : IEnumerable<Tree>, IEnumerable {
-        public static int Offset { private get; set; } 
+        public static int Offset { private get; set; }
             = 40;
 
         #region regex
@@ -136,7 +136,7 @@ namespace Syntax {
             }
             if (root.IsAllLegal) {
                 SyntaxCheck(root);
-            } 
+            }
             return root;
         }
 
@@ -161,8 +161,7 @@ namespace Syntax {
             return new[] { conext, arrows };
         }
 
-        public IEnumerable<string> AsComplain() 
-            => Complain(Text, Head, Tail, Offset);
+        public IEnumerable<string> AsComplain() => Complain(Text, Head, Tail, Offset);
 
         public static void SyntaxCheck(Tree tree) {
             if (!tree.AnyChild)
@@ -201,30 +200,23 @@ namespace Syntax {
 
         public string Text { get; private set; }
 
-        public IList<Tree> Children { get; }
-            = new List<Tree>();
+        public IList<Tree> Children { get; } = new List<Tree>();
 
         public Tree Parent { get; set; }
 
         public bool AnyChild => Children.Count > 0;
 
-        public int Head { get; private set; }
-            = -1;
+        public int Head { get; private set; } = -1;
 
-        public int Tail { get; private set; }
-            = -1;
+        public int Tail { get; private set; } = -1;
 
-        public bool IsLegal { get; private set; }
-            = true;
+        public bool IsLegal { get; private set; } = true;
 
-        public bool IsAllLegal
-            => this.All(t => t.IsLegal);
+        public bool IsAllLegal => this.All(t => t.IsLegal);
 
-        public List<string> Warnings { get; }
-            = new List<string>();
+        public List<string> Warnings { get; } = new List<string>();
 
-        public override string ToString()
-            => Text.Substring(Head, Tail - Head + 1);
+        public override string ToString() => Text.Substring(Head, Tail - Head + 1);
 
         /// <summary>
         /// Implement IEnumerable<T> by BFS.
@@ -250,15 +242,11 @@ namespace Syntax {
 }
 
 public static class Program {
-
     private static void Main(string[] args) {
-
-        //Tree.Offset = 75;
-
         var trees = Directory
-             .GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
-             //.GetFiles(@"C:\CMS.net\DDTMPLT")
-             .Where(f => Regex.IsMatch(f, @"led.*?\.(txt)$", RegexOptions.IgnoreCase))
+             //.GetFiles(@"C:\Personal\Projects\documents\DocuDraftFromLynne")
+             .GetFiles(@"C:\CMS.net\DDTMPLT")
+             .Where(f => Regex.IsMatch(f, @"\.(txt|tmp|rtf)$", RegexOptions.IgnoreCase))
              .Select(f => new { FileName = f, Text = File.ReadAllText(f) })
              .Select(f => new { f.FileName, Text = RtfToString.Convert(f.Text) })
              .Select(f => new { f.FileName, Tree = Tree.Create(f.Text) })
