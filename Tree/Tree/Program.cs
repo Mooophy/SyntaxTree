@@ -161,7 +161,8 @@ namespace Syntax {
             return new[] { conext, arrows };
         }
 
-        public IEnumerable<string> AsComplain() => Complain(Text, Head, Tail, Offset);
+        public IEnumerable<string> AsComplain() 
+            => Complain(Text, Head, Tail, Offset);
 
         public static void SyntaxCheck(Tree tree) {
             if (!tree.AnyChild)
