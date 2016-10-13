@@ -74,8 +74,9 @@ namespace Syntax {
     }
     #endregion
 
-    public class Tree : IEnumerable<Tree> {
-        public static int Offset { private get; set; } = 35;
+    public class Tree : IEnumerable<Tree>, IEnumerable {
+        public static int Offset { private get; set; } 
+            = 35;
 
         #region regex
         private static Regex RegexIf { get; }
@@ -111,7 +112,9 @@ namespace Syntax {
                 }
                 if (text[i] == '}') {
                     if (stack.Count < 2) {
-                        root.Warnings = root.Warnings.Concat(Complain(text, i, i, Offset).Prepend("Extra '}' found as following:"));
+                        root
+                            .Warnings
+                            .AddRange(Complain(text, i, i, Offset).Prepend("Extra '}' found as following:"));
                         root.IsLegal = false;
                         break;
                     }
@@ -125,8 +128,10 @@ namespace Syntax {
                     .ToList()
                     .ForEach(
                         b => {
+                            root
+                                .Warnings
+                                .AddRange(Complain(text, b.Head, b.Head, Offset).Prepend("Extra '{' found as following:"));
                             root.IsLegal = false;
-                            root.Warnings = root.Warnings.Concat(Complain(text, b.Head, b.Head, Offset).Prepend("Extra '{' found as following:"));
                         });
             }
             if (root.IsAllLegal) {
@@ -164,35 +169,31 @@ namespace Syntax {
             foreach (var child in tree.Children) {
                 SyntaxCheck(child);
                 if (child.IsAsk) {
-                    tree.Warnings = tree
-                       .Warnings
-                       .Append("'ASK' function is found as following")
-                       .Concat(child.AsComplain());
+                    tree
+                        .Warnings
+                        .AddRange(child.AsComplain().Prepend("'ASK' function is found as following"));
                 }
                 if (child.IsInput) {
-                    tree.Warnings = tree
-                       .Warnings
-                       .Append("'INPUT' command is found as following")
-                       .Concat(child.AsComplain());
+                    tree
+                        .Warnings
+                        .AddRange(child.AsComplain().Prepend("'INPUT' function is found as following"));
                 }
                 if (child.IsIf) {
                     stack.Push(child);
                 } else if (child.IsEndIf) {
                     if (stack.Count < 1) {
-                        tree.Warnings = tree
+                        tree
                             .Warnings
-                            .Append("Extra 'End If' command is found as following")
-                            .Concat(child.AsComplain());
+                            .AddRange(child.AsComplain().Prepend("Extra 'End If' command is found as following"));
                         continue;
                     }
                     stack.Pop();
                 }
             }
             if (stack.Count > 0) {
-                tree.Warnings = tree
+                tree
                     .Warnings
-                    .Append("Extra 'If' command is found as following")
-                    .Concat(stack.SelectMany(t => t.AsComplain()));
+                    .AddRange(stack.SelectMany(t => t.AsComplain()).Prepend("Extra 'If' command is found as following"));
             }
         }
 
@@ -217,8 +218,8 @@ namespace Syntax {
         public bool IsAllLegal
             => this.All(t => t.IsLegal);
 
-        public IEnumerable<string> Warnings { get; private set; }
-            = Empty<string>();
+        public List<string> Warnings { get; }
+            = new List<string>();
 
         public override string ToString()
             => Text.Substring(Head, Tail - Head + 1);
